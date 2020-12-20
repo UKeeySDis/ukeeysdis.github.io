@@ -6,6 +6,7 @@
     <description>Recent content on Jane</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>zh-cn</language>
+    <copyright>ukeeysdis</copyright>
     <lastBuildDate>Mon, 04 Mar 2019 16:01:23 +0800</lastBuildDate>
     
         <atom:link href="http://ukeeysdis.github.io/index.xml" rel="self" type="application/rss+xml" />
@@ -254,7 +255,7 @@ And then define the link:
     </item>
     
     <item>
-      <title>About</title>
+      <title>关于</title>
       <link>http://ukeeysdis.github.io/about/</link>
       <pubDate>Sun, 20 Aug 2017 21:38:52 +0800</pubDate>
       
