@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>cpu on uks&#39;s blog</title>
+    <link>http://ukeeysdis.github.io/tags/cpu/</link>
+    <description>Recent content in cpu on uks&#39;s blog</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-cn</language>
+    <copyright>ukeeysdis</copyright>
+    <lastBuildDate>Sun, 03 Jan 2021 21:02:16 +0800</lastBuildDate><atom:link href="http://ukeeysdis.github.io/tags/cpu/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>定位一次线上CPU的毛刺问题</title>
+      <link>http://ukeeysdis.github.io/post/troubleshoot_a_sudden_cpu_spike/</link>
+      <pubDate>Sun, 03 Jan 2021 21:02:16 +0800</pubDate>
+      
+      <guid>http://ukeeysdis.github.io/post/troubleshoot_a_sudden_cpu_spike/</guid>
+      <description>这篇文章记录一次线上cpu毛刺的定位排查过程，希望能帮助到有需要的同学，同时也做一个复盘，下次再遇见类似情况可以花更少时间解决。 cpu毛刺是</description>
+    </item>
+    
+  </channel>
+</rss>

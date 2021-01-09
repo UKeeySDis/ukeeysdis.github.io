@@ -9,35 +9,70 @@
   </url>
   
   <url>
-    <loc>http://ukeeysdis.github.io/post/2020_summary/</loc>
-    <lastmod>2021-01-03T15:51:15+08:00</lastmod>
+    <loc>http://ukeeysdis.github.io/categories/</loc>
+    <lastmod>2021-01-03T21:02:16+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.5</priority>
   </url>
   
   <url>
-    <loc>http://ukeeysdis.github.io/categories/</loc>
-    <lastmod>2021-01-03T15:51:15+08:00</lastmod>
+    <loc>http://ukeeysdis.github.io/tags/cpu/</loc>
+    <lastmod>2021-01-03T21:02:16+08:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  
+  <url>
+    <loc>http://ukeeysdis.github.io/tags/linux/</loc>
+    <lastmod>2021-01-03T21:02:16+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.5</priority>
   </url>
   
   <url>
     <loc>http://ukeeysdis.github.io/post/</loc>
-    <lastmod>2021-01-03T15:51:15+08:00</lastmod>
+    <lastmod>2021-01-03T21:02:16+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.5</priority>
   </url>
   
   <url>
     <loc>http://ukeeysdis.github.io/tags/</loc>
-    <lastmod>2021-01-03T15:51:15+08:00</lastmod>
+    <lastmod>2021-01-03T21:02:16+08:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  
+  <url>
+    <loc>http://ukeeysdis.github.io/tags/tools/</loc>
+    <lastmod>2021-01-03T21:02:16+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.5</priority>
   </url>
   
   <url>
     <loc>http://ukeeysdis.github.io/</loc>
+    <lastmod>2021-01-03T21:02:16+08:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  
+  <url>
+    <loc>http://ukeeysdis.github.io/post/troubleshoot_a_sudden_cpu_spike/</loc>
+    <lastmod>2021-01-03T21:02:16+08:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  
+  <url>
+    <loc>http://ukeeysdis.github.io/categories/%E7%B3%BB%E7%BB%9F%E8%B0%83%E8%AF%95%E4%BC%98%E5%8C%96/</loc>
+    <lastmod>2021-01-03T21:02:16+08:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  
+  <url>
+    <loc>http://ukeeysdis.github.io/post/2020_summary/</loc>
     <lastmod>2021-01-03T15:51:15+08:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.5</priority>

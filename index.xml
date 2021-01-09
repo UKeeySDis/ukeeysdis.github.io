@@ -7,7 +7,7 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>zh-cn</language>
     <copyright>ukeeysdis</copyright>
-    <lastBuildDate>Sun, 03 Jan 2021 15:51:15 +0800</lastBuildDate>
+    <lastBuildDate>Sun, 03 Jan 2021 21:02:16 +0800</lastBuildDate>
     
         <atom:link href="http://ukeeysdis.github.io/index.xml" rel="self" type="application/rss+xml" />
     
@@ -28,6 +28,105 @@
 &lt;li&gt;2019.11-2019.03 腾讯微信，实习生&lt;/li&gt;
 &lt;li&gt;2019.06-至今 腾讯微信，正式入职&lt;/li&gt;
 &lt;/ul&gt;
+</description>
+      
+    </item>
+    
+    <item>
+      <title>定位一次线上CPU的毛刺问题</title>
+      <link>http://ukeeysdis.github.io/post/troubleshoot_a_sudden_cpu_spike/</link>
+      <pubDate>Sun, 03 Jan 2021 21:02:16 +0800</pubDate>
+      
+      <guid>http://ukeeysdis.github.io/post/troubleshoot_a_sudden_cpu_spike/</guid>
+      
+        <description>&lt;p&gt;这篇文章记录一次线上cpu毛刺的定位排查过程，希望能帮助到有需要的同学，同时也做一个复盘，下次再遇见类似情况可以花更少时间解决。
+cpu毛刺是指在短时间内，cpu的使用率飙升，但很快又降到正常水平，由于毛刺可能是偶发的，不是一直存在，甚至无法复现，所以定位起来比较困难，需要借助一些工具进行协助定位。&lt;/p&gt;
+&lt;h3 id=&#34;发现问题&#34;&gt;发现问题&lt;/h3&gt;
+&lt;p&gt;最近突然收到个别模块的一些失败的告警（由于告警实在太多，也没有怎么注意），后来告警触发了运维拉群才注意原来这个模块的失败是因为存在cpu毛刺，短时间无法处理其他请求导致的，如图所示：&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;../image/cpu_spike.png&#34; alt=&#34;cpu_spike&#34;&gt;&lt;/p&gt;
+&lt;h3 id=&#34;定位问题&#34;&gt;定位问题&lt;/h3&gt;
+&lt;h4 id=&#34;难点&#34;&gt;难点&lt;/h4&gt;
+&lt;p&gt;定位cpu问题一般可以使用&lt;code&gt;top&lt;/code&gt;以及&lt;code&gt;perf&lt;/code&gt;等命令协助定位，但由于毛刺出现的时间较短，如果用perf命令是采集一段时间的cpu使用，那段时间不一定会出现毛刺，并且就算出现了毛刺，也无法判断出消耗cpu较高的调用是不是导致毛刺的操作。&lt;/p&gt;
+&lt;h4 id=&#34;思路&#34;&gt;思路&lt;/h4&gt;
+&lt;p&gt;一般来说，出现毛刺有几个原因：&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;请求突涨，正常的cpu上涨，这个可以通过监控/日志发现；&lt;/li&gt;
+&lt;li&gt;部分请求的参数导致，比如需要处理的信息过多，导致长尾case；&lt;/li&gt;
+&lt;li&gt;后台有定时运行的任务，抢占了cpu&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;我们可以通过脚本去监控服务的cpu占用情况，如果检测到服务cpu占用超过阈值，那就执行相关命令记录一些必要的信息，保存下来进行分析。
+常用的命令有：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;top：查看系统/进程的cpu、内存等信息&lt;/li&gt;
+&lt;li&gt;perf：以函数纬度统计进程的cpu使用情况，可以记录一段时间内的情况，并且生成相关文件，可用于生成火焰图，排查性能瓶颈必备利器&lt;/li&gt;
+&lt;li&gt;strace：跟踪进程的系统调用，配合-c选项可以统计进程某段时间的系统调用次数等信息&lt;/li&gt;
+&lt;li&gt;pstack/gstack：记录进程当前的调用栈&lt;/li&gt;
+&lt;li&gt;gcore：主动生成进程当前的coredump&lt;/li&gt;
+&lt;li&gt;pidstat：查看进程占用的各种资源的信息，可以用来看进程上下文切换次数&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;对于原因1，如果请求涨的比较少，但cpu却狂飙，可能是服务的进程/线程数开的过多，彼此间切换的开销加大，可以使用&lt;code&gt;pstree -p pid&lt;/code&gt;查看子线程/进程个数，并且使用&lt;code&gt;pidstat&lt;/code&gt;命令查看非自愿上下文切换次数（系统强制调度），如果非自愿上下文切换次数跟平时比差异较大，说明线程/进程数开太多&lt;/p&gt;
+&lt;p&gt;对于原因2，可以借助日志，把每个请求的耗时打印出来，找到耗时较高的请求，进行具体分析，不过由于毛刺出现期间cpu并不空闲，所以会导致期间的请求耗时都比较高，所以需要根据出现毛刺的时间，以及请求进入的时间等信息协助定位&lt;/p&gt;
+&lt;p&gt;对于原因3，可以根据perf命令进行定位，查看是什么操作占用过多cpu，或者使用&lt;code&gt;pstack&lt;/code&gt;命令把当前调用栈打印出来&lt;/p&gt;
+&lt;p&gt;这样的思路可能只适用于使用cgroup等进行资源隔离的服务，毕竟如果资源没有隔离，那可能整台机器都处于高负载，使用命令也会得不大及时的处理，影响结果的判断。&lt;/p&gt;
+&lt;p&gt;参考脚本：&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-shell&#34; data-lang=&#34;shell&#34;&gt;&lt;span style=&#34;color:#75715e&#34;&gt;#!/bin/bash
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;# svr pid which perf record&lt;/span&gt;
+svr_pid&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;# perf job pid&lt;/span&gt;
+perf_job_pid&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;# strace job pid&lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;# strace_job_pid=0&lt;/span&gt;
+&lt;span style=&#34;color:#66d9ef&#34;&gt;while&lt;/span&gt; :
+&lt;span style=&#34;color:#66d9ef&#34;&gt;do&lt;/span&gt;
+    &lt;span style=&#34;color:#75715e&#34;&gt;# get svr pid&lt;/span&gt;
+    cur_svr_pid&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;`&lt;/span&gt;ps -ef | grep &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;svr_name&amp;#34;&lt;/span&gt; | grep -v grep | awk &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;{print $2}&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;`&lt;/span&gt;
+    echo &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;INFO: cur svr pid:&amp;#34;&lt;/span&gt;$cur_svr_pid
+    &lt;span style=&#34;color:#75715e&#34;&gt;# get svr cpu&lt;/span&gt;
+    cur_cpu&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;`&lt;/span&gt;top -p $cur_svr_pid -n &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt; | awk &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;{if (NR == 8) print $10}&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;`&lt;/span&gt;
+    echo &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;INFO: cur cpu:&amp;#34;&lt;/span&gt;$cur_cpu
+    &lt;span style=&#34;color:#75715e&#34;&gt;# cpu &amp;gt; core*100*80% and svr pid is valid&lt;/span&gt;
+    &lt;span style=&#34;color:#75715e&#34;&gt;# because, svr maybe restart&lt;/span&gt;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;[&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;`&lt;/span&gt;echo &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;&lt;/span&gt;$cur_cpu&lt;span style=&#34;color:#e6db74&#34;&gt; &amp;gt; 480.0&amp;#34;&lt;/span&gt; | bc&lt;span style=&#34;color:#e6db74&#34;&gt;`&lt;/span&gt; -eq &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;]&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;[&lt;/span&gt; $svr_pid -eq &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt; -o $svr_pid -eq $cur_svr_pid &lt;span style=&#34;color:#f92672&#34;&gt;]&lt;/span&gt;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;then&lt;/span&gt;
+				&lt;span style=&#34;color:#75715e&#34;&gt;# perf... not run&lt;/span&gt;
+				&lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;[&lt;/span&gt; $perf_job_pid -eq &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;]&lt;/span&gt;
+				&lt;span style=&#34;color:#66d9ef&#34;&gt;then&lt;/span&gt;
+				&lt;span style=&#34;color:#75715e&#34;&gt;# run a job&lt;/span&gt;
+    		perf record -p $cur_svr_pid -o perf.txt.&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;&lt;/span&gt;$cur_cpu&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;&lt;/span&gt; &amp;amp;
+				&lt;span style=&#34;color:#75715e&#34;&gt;#strace -fTtc -p $cur_svr_pid -o strace.txt.&amp;#34;$cur_cpu&amp;#34; &amp;amp;&lt;/span&gt;
+				&lt;span style=&#34;color:#75715e&#34;&gt;#pstack $cur_svr_pid &amp;gt; pstack.txt.&amp;#34;$cur_cpu&amp;#34; &amp;amp;&lt;/span&gt;
+				&lt;span style=&#34;color:#75715e&#34;&gt;#gcore $cur_svr_pid;mv core.$cur_svr_pid core.&amp;#34;$cur_svr_pid.&amp;#34;&amp;#34;$cur_cpu&amp;#34; &amp;amp;&lt;/span&gt;
+   		 	svr_pid&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;$cur_svr_pid
+    		perf_job_pid&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;`&lt;/span&gt;jobs -l | grep perf.txt. | awk &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;{print $2}&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;`&lt;/span&gt;
+				&lt;span style=&#34;color:#75715e&#34;&gt;#strace_job_pid=`jobs -l | grep strace.txt. | awk &amp;#39;{print $2}&amp;#39;`&lt;/span&gt;
+    		echo &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;BEGIN: perf job pid:&amp;#34;&lt;/span&gt;$perf_job_pid
+    		&lt;span style=&#34;color:#75715e&#34;&gt;#echo &amp;#34;BEGIN: strace job pid:&amp;#34;$strace_job_pid&lt;/span&gt;
+    		echo &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;BEGIN: begin time:&amp;#34;&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;`&lt;/span&gt;date +%s&lt;span style=&#34;color:#e6db74&#34;&gt;`&lt;/span&gt;
+		&lt;span style=&#34;color:#66d9ef&#34;&gt;fi&lt;/span&gt;
+    &lt;span style=&#34;color:#66d9ef&#34;&gt;else&lt;/span&gt;
+				&lt;span style=&#34;color:#75715e&#34;&gt;# maybe cpu &amp;lt; 80% or svr is restart&lt;/span&gt;
+	  		&lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;[&lt;/span&gt; $perf_job_pid -ne &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;]&lt;/span&gt;
+	 			&lt;span style=&#34;color:#66d9ef&#34;&gt;then&lt;/span&gt;
+      			kill -2 $perf_job_pid
+      			&lt;span style=&#34;color:#75715e&#34;&gt;#kill -2 $strace_job_pid&lt;/span&gt;
+		  			echo &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;END: end job.end time:&amp;#34;&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;`&lt;/span&gt;date +%s&lt;span style=&#34;color:#e6db74&#34;&gt;`&lt;/span&gt;
+		  			echo &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;END: perf job pid:&amp;#34;&lt;/span&gt;$perf_job_pid
+		  			&lt;span style=&#34;color:#75715e&#34;&gt;#echo &amp;#34;END: strace job pid:&amp;#34;$strace_job_pid&lt;/span&gt;
+		  			echo &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;END: svr_pid:&amp;#34;&lt;/span&gt;$svr_pid&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34; cur_svr_pid:&amp;#34;&lt;/span&gt;$cur_svr_pid
+		  			&lt;span style=&#34;color:#75715e&#34;&gt;# clear pid&lt;/span&gt;
+		  			svr_pid&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;
+		  			perf_job_pid&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;
+		  			&lt;span style=&#34;color:#75715e&#34;&gt;#strace_job_pid=0&lt;/span&gt;
+    		&lt;span style=&#34;color:#66d9ef&#34;&gt;fi&lt;/span&gt;
+  	&lt;span style=&#34;color:#66d9ef&#34;&gt;fi&lt;/span&gt;
+ 		&lt;span style=&#34;color:#75715e&#34;&gt;# sleep top default flush time&lt;/span&gt;
+    sleep &lt;span style=&#34;color:#ae81ff&#34;&gt;3&lt;/span&gt;
+&lt;span style=&#34;color:#66d9ef&#34;&gt;done&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;这个脚本的功能就是使用&lt;code&gt;top -p pid&lt;/code&gt;命令定时查看服务的cpu负载，高于80%（脚本中是6核机器，所以是480，需要自行更改）就开始使用perf等命令采集信息，由于top命令默认是3s更新一次信息，所以脚本会sleep 3s重新检查cpu，如果低于阈值，就干掉相关的采集命令，进行下一轮采集。&lt;/p&gt;
+&lt;h3 id=&#34;总结&#34;&gt;总结&lt;/h3&gt;
+&lt;p&gt;这个有毛刺的模块，一开始使用脚本发现cpu是消耗在&lt;code&gt;unordered_map&lt;/code&gt;的查找操作中，但平时运行时根据perf命令的结果显示也是&lt;code&gt;unordered_map&lt;/code&gt;的查找操作消耗cpu比较多，所以怀疑极大可能是因为上面所说的原因2导致。通过日志发现确实有超长耗时的请求，捞出来看了下是因为请求的query长度过长，分词后需要匹配的词典过多导致cpu消耗太大。&lt;/p&gt;
+&lt;p&gt;因此后续考虑加入布隆过滤器提前过滤掉不可能命中的query，减少去匹配的次数，从而降低cpu利用率。&lt;/p&gt;
+&lt;p&gt;其实排查这种问题，还是要对服务有一定的熟悉度，平时就能大概知道服务会有哪些问题，也不至于出现问题就像无头苍蝇一样。并且有了一定的调试经验后，往往通过一些简单的命令和日志就可以发现问题。&lt;/p&gt;
 </description>
       
     </item>

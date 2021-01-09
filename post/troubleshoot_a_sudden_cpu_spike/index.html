@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>2020总结 - uks&#39;s blog</title>
+  <title>定位一次线上CPU的毛刺问题 - uks&#39;s blog</title>
   
 
 <meta name="renderer" content="webkit" />
@@ -23,7 +23,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 
 <meta name="author" content="ukeeysdis" />
-  <meta name="description" content="已经很久没有写博客了，上一次应该18年9月对秋招结束的一个总结（因为工作之后太懒：） 不管是在工作中还是平时收获的东西，还是应当像之前在学校一" />
+  <meta name="description" content="这篇文章记录一次线上cpu毛刺的定位排查过程，希望能帮助到有需要的同学，同时也做一个复盘，下次再遇见类似情况可以花更少时间解决。 cpu毛刺是" />
 
 
 
@@ -34,7 +34,7 @@
 <meta name="generator" content="Hugo 0.79.0" />
 
 
-<link rel="canonical" href="http://ukeeysdis.github.io/post/2020_summary/" />
+<link rel="canonical" href="http://ukeeysdis.github.io/post/troubleshoot_a_sudden_cpu_spike/" />
 
 
 
@@ -58,24 +58,24 @@
 
 
 
-<meta property="og:title" content="2020总结" />
-<meta property="og:description" content="已经很久没有写博客了，上一次应该18年9月对秋招结束的一个总结（因为工作之后太懒：） 不管是在工作中还是平时收获的东西，还是应当像之前在学校一" />
+<meta property="og:title" content="定位一次线上CPU的毛刺问题" />
+<meta property="og:description" content="这篇文章记录一次线上cpu毛刺的定位排查过程，希望能帮助到有需要的同学，同时也做一个复盘，下次再遇见类似情况可以花更少时间解决。 cpu毛刺是" />
 <meta property="og:type" content="article" />
-<meta property="og:url" content="http://ukeeysdis.github.io/post/2020_summary/" />
-<meta property="article:published_time" content="2021-01-03T15:51:15+08:00" />
-<meta property="article:modified_time" content="2021-01-03T15:51:15+08:00" />
-<meta itemprop="name" content="2020总结">
-<meta itemprop="description" content="已经很久没有写博客了，上一次应该18年9月对秋招结束的一个总结（因为工作之后太懒：） 不管是在工作中还是平时收获的东西，还是应当像之前在学校一">
-<meta itemprop="datePublished" content="2021-01-03T15:51:15+08:00" />
-<meta itemprop="dateModified" content="2021-01-03T15:51:15+08:00" />
-<meta itemprop="wordCount" content="2668">
+<meta property="og:url" content="http://ukeeysdis.github.io/post/troubleshoot_a_sudden_cpu_spike/" />
+<meta property="article:published_time" content="2021-01-03T21:02:16+08:00" />
+<meta property="article:modified_time" content="2021-01-03T21:02:16+08:00" />
+<meta itemprop="name" content="定位一次线上CPU的毛刺问题">
+<meta itemprop="description" content="这篇文章记录一次线上cpu毛刺的定位排查过程，希望能帮助到有需要的同学，同时也做一个复盘，下次再遇见类似情况可以花更少时间解决。 cpu毛刺是">
+<meta itemprop="datePublished" content="2021-01-03T21:02:16+08:00" />
+<meta itemprop="dateModified" content="2021-01-03T21:02:16+08:00" />
+<meta itemprop="wordCount" content="1834">
 
 
 
-<meta itemprop="keywords" content="总结," />
+<meta itemprop="keywords" content="Linux,tools,cpu," />
 <meta name="twitter:card" content="summary"/>
-<meta name="twitter:title" content="2020总结"/>
-<meta name="twitter:description" content="已经很久没有写博客了，上一次应该18年9月对秋招结束的一个总结（因为工作之后太懒：） 不管是在工作中还是平时收获的东西，还是应当像之前在学校一"/>
+<meta name="twitter:title" content="定位一次线上CPU的毛刺问题"/>
+<meta name="twitter:description" content="这篇文章记录一次线上cpu毛刺的定位排查过程，希望能帮助到有需要的同学，同时也做一个复盘，下次再遇见类似情况可以花更少时间解决。 cpu毛刺是"/>
 
 <!--[if lte IE 9]>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/classlist/1.1.20170427/classList.min.js"></script>
@@ -295,25 +295,25 @@
           <article class="post bg-white">
     
     <header class="post-header">
-      <h1 class="post-title">2020总结</h1>
+      <h1 class="post-title">定位一次线上CPU的毛刺问题</h1>
       
       <div class="post-meta">
         <time datetime="2021-01-03" class="post-time">
           2021-01-03
         </time>
         <div class="post-category">
-            <a href="http://ukeeysdis.github.io/categories/%E4%B8%AA%E4%BA%BA%E6%84%9F%E6%82%9F/"> 个人感悟 </a>
+            <a href="http://ukeeysdis.github.io/categories/%E7%B3%BB%E7%BB%9F%E8%B0%83%E8%AF%95%E4%BC%98%E5%8C%96/"> 系统调试优化 </a>
             
           </div>
-        <span class="more-meta"> 约 2668 字 </span>
-          <span class="more-meta"> 预计阅读 6 分钟 </span>
+        <span class="more-meta"> 约 1834 字 </span>
+          <span class="more-meta"> 预计阅读 4 分钟 </span>
 
         
         
 
         
         
-          <span id="/post/2020_summary/" class="leancloud_visitors" data-flag-title="2020总结">
+          <span id="/post/troubleshoot_a_sudden_cpu_spike/" class="leancloud_visitors" data-flag-title="定位一次线上CPU的毛刺问题">
             <span class="post-meta-item-text"> | 阅读 </span>
             <span class="leancloud-visitors-count"></span>
           </span>
@@ -330,8 +330,8 @@
   <ul>
     <li>
       <ul>
-        <li><a href="#实习">实习</a></li>
-        <li><a href="#正式入职">正式入职</a></li>
+        <li><a href="#发现问题">发现问题</a></li>
+        <li><a href="#定位问题">定位问题</a></li>
         <li><a href="#总结">总结</a></li>
       </ul>
     </li>
@@ -342,43 +342,94 @@
 
     
     <div class="post-content">
-      <p>已经很久没有写博客了，上一次应该18年9月对秋招结束的一个总结（因为工作之后太懒：）</p>
-<p>不管是在工作中还是平时收获的东西，还是应当像之前在学校一样花时间记录下来，不然很容易就忘记了，等下次再遇到，又得花时间重新收集资料，如此反复。</p>
-<p>这篇文章仅记录一下在此之前我的一些生活以及工作历程，就当是对之前的一个大总结了。</p>
-<h3 id="实习">实习</h3>
-<p>当时在北京实习完后，毕业前回到成都，在学校待着，迫于生计，又找了一个实习，是一家做大数据安全的小公司（现在已经被收购），工作内容和之前在百度实习的时候类似，是做流式计算相关的东西，带我的人让我去预研一个计算相关的组件（叫啥忘了），我只实习了一个月就走了，因为预研实在是难受，每天坐在那里看论文，完全没有融入感，加上实习工资也比较低。
-这段经历让我明白两点：</p>
+      <p>这篇文章记录一次线上cpu毛刺的定位排查过程，希望能帮助到有需要的同学，同时也做一个复盘，下次再遇见类似情况可以花更少时间解决。
+cpu毛刺是指在短时间内，cpu的使用率飙升，但很快又降到正常水平，由于毛刺可能是偶发的，不是一直存在，甚至无法复现，所以定位起来比较困难，需要借助一些工具进行协助定位。</p>
+<h3 id="发现问题">发现问题</h3>
+<p>最近突然收到个别模块的一些失败的告警（由于告警实在太多，也没有怎么注意），后来告警触发了运维拉群才注意原来这个模块的失败是因为存在cpu毛刺，短时间无法处理其他请求导致的，如图所示：</p>
+<p><img src="../image/cpu_spike.png" alt="cpu_spike"></p>
+<h3 id="定位问题">定位问题</h3>
+<h4 id="难点">难点</h4>
+<p>定位cpu问题一般可以使用<code>top</code>以及<code>perf</code>等命令协助定位，但由于毛刺出现的时间较短，如果用perf命令是采集一段时间的cpu使用，那段时间不一定会出现毛刺，并且就算出现了毛刺，也无法判断出消耗cpu较高的调用是不是导致毛刺的操作。</p>
+<h4 id="思路">思路</h4>
+<p>一般来说，出现毛刺有几个原因：</p>
 <ol>
-<li>小公司可能因为用到开源组件更多一些，对新技术的接受程度其实更高，历史包袱没有那么重，比如他们已经开始使用Rust，并且尝试使用业界比较前沿的大数据计算组件</li>
-<li>早9晚6真的很舒服：）</li>
+<li>请求突涨，正常的cpu上涨，这个可以通过监控/日志发现；</li>
+<li>部分请求的参数导致，比如需要处理的信息过多，导致长尾case；</li>
+<li>后台有定时运行的任务，抢占了cpu</li>
 </ol>
-<p>随后，我联系了校招的面试官，能否在成都腾讯提前实习一段时间，能够提前熟悉一下工作内容，并且恰好也在成都。</p>
-<p>在一番协商后，我在成都腾讯入职了。</p>
-<p>因为是实习的缘故，所以工作没有那么多，主要还是熟悉一些开发环境然后做一下不太重要的小需求。当时工作中也问了导师的不少问题，大多都跟工作环境相关的，不过说实话他不是很友好。后来因为做的工作内容和心理预期不太符合，再加上待着比较难受，就联系了另外的团队，简单聊了一下，最后更换了入职的组。（及时止损很重要，其实觉得挺对不起原leader，他人挺好</p>
-<h3 id="正式入职">正式入职</h3>
-<p>毕业后，我在广州腾讯正式入职了，女朋友也找到了实习，不过是在深圳腾讯，所以我每周五得坐最后一趟班车去深圳，然后周一再坐最早的班车回广州。
-工作上面因为之前实习了一段时间，以及毕业设计是跟libco协程相关的，所以对环境有了一定的熟悉度，入职的前两周应导师的安排，阅读了微信用的rpc框架源码（因为随后工作中会大量使用），并且总结成了pdf发到组里（这一点是导师要求的，因为这也是个人输出的一部分，他的原话大意是花了时间，一定要让老大看到你做了什么，有产出才行）。他也给我安排了随后的一些学习计划，不过是在工作中进行，比如阅读phxpaxos以及phxqueue的源码，业务和组件两条腿走路。（不过即使到现在，这两个组件的源码我还是没有开始染指，囧）</p>
-<p>微信后台有不少沉淀的优秀资料与组件以及架构，在这过程中：</p>
-<ol>
-<li>
-<p>在分布式方面，我熟悉了分布式相关的原理以及一些常见的分布式算法，比如事务相关的，常见的2PC、3PC、消息表、TCC以及事务消息，副本的一致性，Quorum算法，阅读了raft和paxos的论文，raft其实之前在毕业之前就做过6.824的课程，但忘的太厉害。paxos目前在微信后台大量使用，特别是存储，基于phxpaxos实现了强一致的kv，是微信的基石。选主需要用的租约机制，数据路由需要用到的一致性hash等算法。</p>
-<p>这里比较推荐刘杰的《分布式系统原理介绍》这个PDF以及《数据密集型应用系统设计》这本书。了解这些原理固然需要时间，但运用这些算法去完成一个能解决实际问题的项目，这才是最难的。我们如果没有实际的项目，其实很难完全掌握这些算法，不过也可以退而求次，有机会的话去阅读一些源码，比如paxos，它的原理以及证明在掌握了之后，真实用在工程中，会存在性能问题，phxpaxos就是在针对basic paxos优化之后的产物。</p>
-<p>RPC方面就主要是微信自研的，整体是一个mutli-reactors，其中大量使用了libco协程，libco是把网络相关的系统调用进行了hook实现的协程，rpc的请求路由一般采用一致性hash实现，这样可以让同一个用户的请求尽量到同一台机器，便于业务做缓存以及查问题等。名字服务是少有的使用第三方开源组件实现的，用了zookeeper，这个东西我还不太了解。</p>
-<p>在这方面，我还需要多加努力，很多东西都是一知半解。</p>
-</li>
-<li>
-<p>在业务架构方面，我主要熟悉了微信消息系统、群、关系链、朋友圈、互通系统的架构设计，其中使用到的分布式seq算法和各种容灾策略，以及微信的多idc架构，这些让我受益匪浅，因为这样的机会很难得，这是一套能支撑起十亿人使用的业务架构，放在全球也是很少的。不过其实已经很成熟了，对于新人来说，有一个很大的缺点是熟悉了业务之后，会明显感受到成长缓慢，因为平时的工作内容大多还是在原来的基础上做需求，它的业务性质就已经决定了，可用性高于一切，不管是项目或者发布，都得为了可用性考虑，所以架构上基本不可能再改变。</p>
-</li>
-<li>
-<p>其他的便是一些比较琐碎的了，比如编码规范，主要阅读了googleC++的编码规范，以及一些文档，比如protobuf的官方文档，语言方面主要读了《Effective modern C++》。</p>
-</li>
-</ol>
-<p>这里的总结其实应该算是从正式入职截止到去年8月份一年多，因为女朋友实习完后也没有在广州找到合适的，最后还是去了深圳，每周来回跑长期下去也不是一个办法，再加上一些其他原因，我选择了活水到深圳。这段经历对我来说收获颇丰，开阔了我的眼界，也学习到了不少东西，也需要花不少时间去消化总结；认识到的同事也都很好，昨年上半年还拿了不错的绩效，其实还真的不太舍得。</p>
-<p>随后到了深圳，终于不用每周末再来回奔波了，不过房价真的比广州贵太多。也就是昨年下半年。</p>
-<p>主要学习到的是搜索相关的后台架构，以前对搜索引擎的工作机制不太了解，现在算是有了一个大致的轮廓了。对于工程来说，有几点是可以发力的，分布式爬虫（不过我们这边不算通用搜索，没有爬虫），在线召回（主要是求交算法的优化），离线索引（索引的管理与压缩），我的工作内容偏业务一点，主要是引擎的使用方，不过也需要去掌握引擎的原理。搜索系统对性能比较敏感，对耗时的要求很高，就算是业务方，也需要做不少优化工作。并且相比于普通业务来说，搜索业务相对复杂，一些工具的使用也更多一些，比如查性能瓶颈以及内存泄漏和越界等，这些让我在定位和调优工具的使用上有所提升。</p>
+<p>我们可以通过脚本去监控服务的cpu占用情况，如果检测到服务cpu占用超过阈值，那就执行相关命令记录一些必要的信息，保存下来进行分析。
+常用的命令有：</p>
+<ul>
+<li>top：查看系统/进程的cpu、内存等信息</li>
+<li>perf：以函数纬度统计进程的cpu使用情况，可以记录一段时间内的情况，并且生成相关文件，可用于生成火焰图，排查性能瓶颈必备利器</li>
+<li>strace：跟踪进程的系统调用，配合-c选项可以统计进程某段时间的系统调用次数等信息</li>
+<li>pstack/gstack：记录进程当前的调用栈</li>
+<li>gcore：主动生成进程当前的coredump</li>
+<li>pidstat：查看进程占用的各种资源的信息，可以用来看进程上下文切换次数</li>
+</ul>
+<p>对于原因1，如果请求涨的比较少，但cpu却狂飙，可能是服务的进程/线程数开的过多，彼此间切换的开销加大，可以使用<code>pstree -p pid</code>查看子线程/进程个数，并且使用<code>pidstat</code>命令查看非自愿上下文切换次数（系统强制调度），如果非自愿上下文切换次数跟平时比差异较大，说明线程/进程数开太多</p>
+<p>对于原因2，可以借助日志，把每个请求的耗时打印出来，找到耗时较高的请求，进行具体分析，不过由于毛刺出现期间cpu并不空闲，所以会导致期间的请求耗时都比较高，所以需要根据出现毛刺的时间，以及请求进入的时间等信息协助定位</p>
+<p>对于原因3，可以根据perf命令进行定位，查看是什么操作占用过多cpu，或者使用<code>pstack</code>命令把当前调用栈打印出来</p>
+<p>这样的思路可能只适用于使用cgroup等进行资源隔离的服务，毕竟如果资源没有隔离，那可能整台机器都处于高负载，使用命令也会得不大及时的处理，影响结果的判断。</p>
+<p>参考脚本：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell"><span style="color:#75715e">#!/bin/bash
+</span><span style="color:#75715e"></span><span style="color:#75715e"># svr pid which perf record</span>
+svr_pid<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>
+<span style="color:#75715e"># perf job pid</span>
+perf_job_pid<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>
+<span style="color:#75715e"># strace job pid</span>
+<span style="color:#75715e"># strace_job_pid=0</span>
+<span style="color:#66d9ef">while</span> :
+<span style="color:#66d9ef">do</span>
+    <span style="color:#75715e"># get svr pid</span>
+    cur_svr_pid<span style="color:#f92672">=</span><span style="color:#e6db74">`</span>ps -ef | grep <span style="color:#e6db74">&#34;svr_name&#34;</span> | grep -v grep | awk <span style="color:#e6db74">&#39;{print $2}&#39;</span><span style="color:#e6db74">`</span>
+    echo <span style="color:#e6db74">&#34;INFO: cur svr pid:&#34;</span>$cur_svr_pid
+    <span style="color:#75715e"># get svr cpu</span>
+    cur_cpu<span style="color:#f92672">=</span><span style="color:#e6db74">`</span>top -p $cur_svr_pid -n <span style="color:#ae81ff">1</span> | awk <span style="color:#e6db74">&#39;{if (NR == 8) print $10}&#39;</span><span style="color:#e6db74">`</span>
+    echo <span style="color:#e6db74">&#34;INFO: cur cpu:&#34;</span>$cur_cpu
+    <span style="color:#75715e"># cpu &gt; core*100*80% and svr pid is valid</span>
+    <span style="color:#75715e"># because, svr maybe restart</span>
+    <span style="color:#66d9ef">if</span> <span style="color:#f92672">[</span> <span style="color:#e6db74">`</span>echo <span style="color:#e6db74">&#34;</span>$cur_cpu<span style="color:#e6db74"> &gt; 480.0&#34;</span> | bc<span style="color:#e6db74">`</span> -eq <span style="color:#ae81ff">1</span> <span style="color:#f92672">]</span> <span style="color:#f92672">&amp;&amp;</span> <span style="color:#f92672">[</span> $svr_pid -eq <span style="color:#ae81ff">0</span> -o $svr_pid -eq $cur_svr_pid <span style="color:#f92672">]</span>
+    <span style="color:#66d9ef">then</span>
+				<span style="color:#75715e"># perf... not run</span>
+				<span style="color:#66d9ef">if</span> <span style="color:#f92672">[</span> $perf_job_pid -eq <span style="color:#ae81ff">0</span> <span style="color:#f92672">]</span>
+				<span style="color:#66d9ef">then</span>
+				<span style="color:#75715e"># run a job</span>
+    		perf record -p $cur_svr_pid -o perf.txt.<span style="color:#e6db74">&#34;</span>$cur_cpu<span style="color:#e6db74">&#34;</span> &amp;
+				<span style="color:#75715e">#strace -fTtc -p $cur_svr_pid -o strace.txt.&#34;$cur_cpu&#34; &amp;</span>
+				<span style="color:#75715e">#pstack $cur_svr_pid &gt; pstack.txt.&#34;$cur_cpu&#34; &amp;</span>
+				<span style="color:#75715e">#gcore $cur_svr_pid;mv core.$cur_svr_pid core.&#34;$cur_svr_pid.&#34;&#34;$cur_cpu&#34; &amp;</span>
+   		 	svr_pid<span style="color:#f92672">=</span>$cur_svr_pid
+    		perf_job_pid<span style="color:#f92672">=</span><span style="color:#e6db74">`</span>jobs -l | grep perf.txt. | awk <span style="color:#e6db74">&#39;{print $2}&#39;</span><span style="color:#e6db74">`</span>
+				<span style="color:#75715e">#strace_job_pid=`jobs -l | grep strace.txt. | awk &#39;{print $2}&#39;`</span>
+    		echo <span style="color:#e6db74">&#34;BEGIN: perf job pid:&#34;</span>$perf_job_pid
+    		<span style="color:#75715e">#echo &#34;BEGIN: strace job pid:&#34;$strace_job_pid</span>
+    		echo <span style="color:#e6db74">&#34;BEGIN: begin time:&#34;</span><span style="color:#e6db74">`</span>date +%s<span style="color:#e6db74">`</span>
+		<span style="color:#66d9ef">fi</span>
+    <span style="color:#66d9ef">else</span>
+				<span style="color:#75715e"># maybe cpu &lt; 80% or svr is restart</span>
+	  		<span style="color:#66d9ef">if</span> <span style="color:#f92672">[</span> $perf_job_pid -ne <span style="color:#ae81ff">0</span> <span style="color:#f92672">]</span>
+	 			<span style="color:#66d9ef">then</span>
+      			kill -2 $perf_job_pid
+      			<span style="color:#75715e">#kill -2 $strace_job_pid</span>
+		  			echo <span style="color:#e6db74">&#34;END: end job.end time:&#34;</span><span style="color:#e6db74">`</span>date +%s<span style="color:#e6db74">`</span>
+		  			echo <span style="color:#e6db74">&#34;END: perf job pid:&#34;</span>$perf_job_pid
+		  			<span style="color:#75715e">#echo &#34;END: strace job pid:&#34;$strace_job_pid</span>
+		  			echo <span style="color:#e6db74">&#34;END: svr_pid:&#34;</span>$svr_pid<span style="color:#e6db74">&#34; cur_svr_pid:&#34;</span>$cur_svr_pid
+		  			<span style="color:#75715e"># clear pid</span>
+		  			svr_pid<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>
+		  			perf_job_pid<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>
+		  			<span style="color:#75715e">#strace_job_pid=0</span>
+    		<span style="color:#66d9ef">fi</span>
+  	<span style="color:#66d9ef">fi</span>
+ 		<span style="color:#75715e"># sleep top default flush time</span>
+    sleep <span style="color:#ae81ff">3</span>
+<span style="color:#66d9ef">done</span>
+</code></pre></div><p>这个脚本的功能就是使用<code>top -p pid</code>命令定时查看服务的cpu负载，高于80%（脚本中是6核机器，所以是480，需要自行更改）就开始使用perf等命令采集信息，由于top命令默认是3s更新一次信息，所以脚本会sleep 3s重新检查cpu，如果低于阈值，就干掉相关的采集命令，进行下一轮采集。</p>
 <h3 id="总结">总结</h3>
-<p>以上是我对过去学到的东西以及过程的一些总结，里面没有什么太多实质性的内容，更多的是梳理。整体来说不算特别满意，主要是少了总结，比较零散，导致很多遗忘，这一点非常不好，后续我会做一些具体的整理。</p>
-<p>之前读过一篇文章，里面提到技术人员的一些原则，其中有一点是“由始而终”，即先想清楚目标，再努力实现，学习也是一样，要带着目标去针对性学习，而不是零零散散东看一篇文章，西看一篇文章，知识要成体系，相辅相成，这很重要。</p>
+<p>这个有毛刺的模块，一开始使用脚本发现cpu是消耗在<code>unordered_map</code>的查找操作中，但平时运行时根据perf命令的结果显示也是<code>unordered_map</code>的查找操作消耗cpu比较多，所以怀疑极大可能是因为上面所说的原因2导致。通过日志发现确实有超长耗时的请求，捞出来看了下是因为请求的query长度过长，分词后需要匹配的词典过多导致cpu消耗太大。</p>
+<p>因此后续考虑加入布隆过滤器提前过滤掉不可能命中的query，减少去匹配的次数，从而降低cpu利用率。</p>
+<p>其实排查这种问题，还是要对服务有一定的熟悉度，平时就能大概知道服务会有哪些问题，也不至于出现问题就像无头苍蝇一样。并且有了一定的调试经验后，往往通过一些简单的命令和日志就可以发现问题。</p>
 
     </div>
 
@@ -409,27 +460,29 @@
 
     <footer class="post-footer">
       <div class="post-tags">
-          <a href="http://ukeeysdis.github.io/tags/%E6%80%BB%E7%BB%93/">总结</a>
+          <a href="http://ukeeysdis.github.io/tags/linux/">Linux</a>
+          <a href="http://ukeeysdis.github.io/tags/tools/">tools</a>
+          <a href="http://ukeeysdis.github.io/tags/cpu/">cpu</a>
           
         </div>
 
       
       <nav class="post-nav">
         
-          <a class="prev" href="/post/troubleshoot_a_sudden_cpu_spike/">
+        
+          <a class="next" href="/post/2020_summary/">
+            <span class="next-text nav-default">2020总结</span>
+            <span class="prev-text nav-mobile">下一篇</span>
             
             <i class="iconfont">
-              <svg  class="icon" viewBox="0 0 1024 1024" version="1.1"
+              <svg class="icon" viewBox="0 0 1024 1024" version="1.1"
   xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
   width="18" height="18">
-  <path d="M691.908486 949.511495l75.369571-89.491197c10.963703-12.998035 10.285251-32.864502-1.499144-44.378743L479.499795 515.267417 757.434875 204.940602c11.338233-12.190647 11.035334-32.285311-0.638543-44.850487l-80.46666-86.564541c-11.680017-12.583596-30.356378-12.893658-41.662889-0.716314L257.233596 494.235404c-11.332093 12.183484-11.041474 32.266891 0.657986 44.844348l80.46666 86.564541c1.772366 1.910513 3.706415 3.533476 5.750981 4.877077l306.620399 321.703933C662.505829 963.726242 680.945807 962.528973 691.908486 949.511495z"></path>
+  <path d="M332.091514 74.487481l-75.369571 89.491197c-10.963703 12.998035-10.285251 32.864502 1.499144 44.378743l286.278095 300.375162L266.565125 819.058374c-11.338233 12.190647-11.035334 32.285311 0.638543 44.850487l80.46666 86.564541c11.680017 12.583596 30.356378 12.893658 41.662889 0.716314l377.434212-421.426145c11.332093-12.183484 11.041474-32.266891-0.657986-44.844348l-80.46666-86.564541c-1.772366-1.910513-3.706415-3.533476-5.750981-4.877077L373.270379 71.774697C361.493148 60.273758 343.054193 61.470003 332.091514 74.487481z"></path>
 </svg>
 
             </i>
-            <span class="prev-text nav-default">定位一次线上CPU的毛刺问题</span>
-            <span class="prev-text nav-mobile">上一篇</span>
           </a>
-        
       </nav>
     </footer>
   </article>
