@@ -43,7 +43,7 @@
 cpu毛刺是指在短时间内，cpu的使用率飙升，但很快又降到正常水平，由于毛刺可能是偶发的，不是一直存在，甚至无法复现，所以定位起来比较困难，需要借助一些工具进行协助定位。&lt;/p&gt;
 &lt;h3 id=&#34;发现问题&#34;&gt;发现问题&lt;/h3&gt;
 &lt;p&gt;最近突然收到个别模块的一些失败的告警（由于告警实在太多，也没有怎么注意），后来告警触发了运维拉群才注意原来这个模块的失败是因为存在cpu毛刺，短时间无法处理其他请求导致的，如图所示：&lt;/p&gt;
-&lt;p&gt;&lt;img src=&#34;../image/cpu_spike.png&#34; alt=&#34;cpu_spike&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;http://ukeeysdis.github.io/cpu_spike.png&#34; alt=&#34;cpu_spike&#34;&gt;&lt;/p&gt;
 &lt;h3 id=&#34;定位问题&#34;&gt;定位问题&lt;/h3&gt;
 &lt;h4 id=&#34;难点&#34;&gt;难点&lt;/h4&gt;
 &lt;p&gt;定位cpu问题一般可以使用&lt;code&gt;top&lt;/code&gt;以及&lt;code&gt;perf&lt;/code&gt;等命令协助定位，但由于毛刺出现的时间较短，如果用perf命令是采集一段时间的cpu使用，那段时间不一定会出现毛刺，并且就算出现了毛刺，也无法判断出消耗cpu较高的调用是不是导致毛刺的操作。&lt;/p&gt;
