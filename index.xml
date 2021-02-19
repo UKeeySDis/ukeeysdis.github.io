@@ -69,60 +69,119 @@ cpu毛刺是指在短时间内，cpu的使用率飙升，但很快又降到正�
 &lt;p&gt;对于原因3，可以根据perf命令进行定位，查看是什么操作占用过多cpu，或者使用&lt;code&gt;pstack&lt;/code&gt;命令把当前调用栈打印出来&lt;/p&gt;
 &lt;p&gt;这样的思路可能只适用于使用cgroup等进行资源隔离的服务，毕竟如果资源没有隔离，那可能整台机器都处于高负载，使用命令也会得不大及时的处理，影响结果的判断。&lt;/p&gt;
 &lt;p&gt;参考脚本：&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-shell&#34; data-lang=&#34;shell&#34;&gt;&lt;span style=&#34;color:#75715e&#34;&gt;#!/bin/bash
-&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;# svr pid which perf record&lt;/span&gt;
-svr_pid&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;
-&lt;span style=&#34;color:#75715e&#34;&gt;# perf job pid&lt;/span&gt;
-perf_job_pid&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;
-&lt;span style=&#34;color:#75715e&#34;&gt;# strace job pid&lt;/span&gt;
-&lt;span style=&#34;color:#75715e&#34;&gt;# strace_job_pid=0&lt;/span&gt;
-&lt;span style=&#34;color:#66d9ef&#34;&gt;while&lt;/span&gt; :
-&lt;span style=&#34;color:#66d9ef&#34;&gt;do&lt;/span&gt;
-    &lt;span style=&#34;color:#75715e&#34;&gt;# get svr pid&lt;/span&gt;
-    cur_svr_pid&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;`&lt;/span&gt;ps -ef | grep &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;svr_name&amp;#34;&lt;/span&gt; | grep -v grep | awk &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;{print $2}&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;`&lt;/span&gt;
-    echo &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;INFO: cur svr pid:&amp;#34;&lt;/span&gt;$cur_svr_pid
-    &lt;span style=&#34;color:#75715e&#34;&gt;# get svr cpu&lt;/span&gt;
-    cur_cpu&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;`&lt;/span&gt;top -p $cur_svr_pid -n &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt; | awk &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;{if (NR == 8) print $10}&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;`&lt;/span&gt;
-    echo &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;INFO: cur cpu:&amp;#34;&lt;/span&gt;$cur_cpu
-    &lt;span style=&#34;color:#75715e&#34;&gt;# cpu &amp;gt; core*100*80% and svr pid is valid&lt;/span&gt;
-    &lt;span style=&#34;color:#75715e&#34;&gt;# because, svr maybe restart&lt;/span&gt;
-    &lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;[&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;`&lt;/span&gt;echo &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;&lt;/span&gt;$cur_cpu&lt;span style=&#34;color:#e6db74&#34;&gt; &amp;gt; 480.0&amp;#34;&lt;/span&gt; | bc&lt;span style=&#34;color:#e6db74&#34;&gt;`&lt;/span&gt; -eq &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;]&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;[&lt;/span&gt; $svr_pid -eq &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt; -o $svr_pid -eq $cur_svr_pid &lt;span style=&#34;color:#f92672&#34;&gt;]&lt;/span&gt;
-    &lt;span style=&#34;color:#66d9ef&#34;&gt;then&lt;/span&gt;
-				&lt;span style=&#34;color:#75715e&#34;&gt;# perf... not run&lt;/span&gt;
-				&lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;[&lt;/span&gt; $perf_job_pid -eq &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;]&lt;/span&gt;
-				&lt;span style=&#34;color:#66d9ef&#34;&gt;then&lt;/span&gt;
-				&lt;span style=&#34;color:#75715e&#34;&gt;# run a job&lt;/span&gt;
-    		perf record -p $cur_svr_pid -o perf.txt.&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;&lt;/span&gt;$cur_cpu&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;&lt;/span&gt; &amp;amp;
-				&lt;span style=&#34;color:#75715e&#34;&gt;#strace -fTtc -p $cur_svr_pid -o strace.txt.&amp;#34;$cur_cpu&amp;#34; &amp;amp;&lt;/span&gt;
-				&lt;span style=&#34;color:#75715e&#34;&gt;#pstack $cur_svr_pid &amp;gt; pstack.txt.&amp;#34;$cur_cpu&amp;#34; &amp;amp;&lt;/span&gt;
-				&lt;span style=&#34;color:#75715e&#34;&gt;#gcore $cur_svr_pid;mv core.$cur_svr_pid core.&amp;#34;$cur_svr_pid.&amp;#34;&amp;#34;$cur_cpu&amp;#34; &amp;amp;&lt;/span&gt;
-   		 	svr_pid&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;$cur_svr_pid
-    		perf_job_pid&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;`&lt;/span&gt;jobs -l | grep perf.txt. | awk &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#39;{print $2}&amp;#39;&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;`&lt;/span&gt;
-				&lt;span style=&#34;color:#75715e&#34;&gt;#strace_job_pid=`jobs -l | grep strace.txt. | awk &amp;#39;{print $2}&amp;#39;`&lt;/span&gt;
-    		echo &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;BEGIN: perf job pid:&amp;#34;&lt;/span&gt;$perf_job_pid
-    		&lt;span style=&#34;color:#75715e&#34;&gt;#echo &amp;#34;BEGIN: strace job pid:&amp;#34;$strace_job_pid&lt;/span&gt;
-    		echo &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;BEGIN: begin time:&amp;#34;&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;`&lt;/span&gt;date +%s&lt;span style=&#34;color:#e6db74&#34;&gt;`&lt;/span&gt;
-		&lt;span style=&#34;color:#66d9ef&#34;&gt;fi&lt;/span&gt;
-    &lt;span style=&#34;color:#66d9ef&#34;&gt;else&lt;/span&gt;
-				&lt;span style=&#34;color:#75715e&#34;&gt;# maybe cpu &amp;lt; 80% or svr is restart&lt;/span&gt;
-	  		&lt;span style=&#34;color:#66d9ef&#34;&gt;if&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;[&lt;/span&gt; $perf_job_pid -ne &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;]&lt;/span&gt;
-	 			&lt;span style=&#34;color:#66d9ef&#34;&gt;then&lt;/span&gt;
-      			kill -2 $perf_job_pid
-      			&lt;span style=&#34;color:#75715e&#34;&gt;#kill -2 $strace_job_pid&lt;/span&gt;
-		  			echo &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;END: end job.end time:&amp;#34;&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;`&lt;/span&gt;date +%s&lt;span style=&#34;color:#e6db74&#34;&gt;`&lt;/span&gt;
-		  			echo &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;END: perf job pid:&amp;#34;&lt;/span&gt;$perf_job_pid
-		  			&lt;span style=&#34;color:#75715e&#34;&gt;#echo &amp;#34;END: strace job pid:&amp;#34;$strace_job_pid&lt;/span&gt;
-		  			echo &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;END: svr_pid:&amp;#34;&lt;/span&gt;$svr_pid&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34; cur_svr_pid:&amp;#34;&lt;/span&gt;$cur_svr_pid
-		  			&lt;span style=&#34;color:#75715e&#34;&gt;# clear pid&lt;/span&gt;
-		  			svr_pid&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;
-		  			perf_job_pid&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;
-		  			&lt;span style=&#34;color:#75715e&#34;&gt;#strace_job_pid=0&lt;/span&gt;
-    		&lt;span style=&#34;color:#66d9ef&#34;&gt;fi&lt;/span&gt;
-  	&lt;span style=&#34;color:#66d9ef&#34;&gt;fi&lt;/span&gt;
- 		&lt;span style=&#34;color:#75715e&#34;&gt;# sleep top default flush time&lt;/span&gt;
-    sleep &lt;span style=&#34;color:#ae81ff&#34;&gt;3&lt;/span&gt;
-&lt;span style=&#34;color:#66d9ef&#34;&gt;done&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;这个脚本的功能就是使用&lt;code&gt;top -p pid&lt;/code&gt;命令定时查看服务的cpu负载，高于80%（脚本中是6核机器，所以是480，需要自行更改）就开始使用perf等命令采集信息，由于top命令默认是3s更新一次信息，所以脚本会sleep 3s重新检查cpu，如果低于阈值，就干掉相关的采集命令，进行下一轮采集。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;12
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;13
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;14
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;15
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;16
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;17
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;18
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;19
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;20
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;21
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;22
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;23
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;24
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;25
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;26
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;27
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;28
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;29
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;30
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;31
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;32
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;33
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;34
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;35
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;36
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;37
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;38
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;39
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;40
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;41
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;42
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;43
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;44
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;45
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;46
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;47
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;48
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;49
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;50
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;51
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;52
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;53
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-shell&#34; data-lang=&#34;shell&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#!/bin/bash
+&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;# svr pid which perf record&lt;/span&gt;
+&lt;span class=&#34;nv&#34;&gt;svr_pid&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;0&lt;/span&gt;
+&lt;span class=&#34;c1&#34;&gt;# perf job pid&lt;/span&gt;
+&lt;span class=&#34;nv&#34;&gt;perf_job_pid&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;0&lt;/span&gt;
+&lt;span class=&#34;c1&#34;&gt;# strace job pid&lt;/span&gt;
+&lt;span class=&#34;c1&#34;&gt;# strace_job_pid=0&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;while&lt;/span&gt; :
+&lt;span class=&#34;k&#34;&gt;do&lt;/span&gt;
+    &lt;span class=&#34;c1&#34;&gt;# get svr pid&lt;/span&gt;
+    &lt;span class=&#34;nv&#34;&gt;cur_svr_pid&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;sb&#34;&gt;`&lt;/span&gt;ps -ef &lt;span class=&#34;p&#34;&gt;|&lt;/span&gt; grep &lt;span class=&#34;s2&#34;&gt;&amp;#34;svr_name&amp;#34;&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;|&lt;/span&gt; grep -v grep &lt;span class=&#34;p&#34;&gt;|&lt;/span&gt; awk &lt;span class=&#34;s1&#34;&gt;&amp;#39;{print $2}&amp;#39;&lt;/span&gt;&lt;span class=&#34;sb&#34;&gt;`&lt;/span&gt;
+    &lt;span class=&#34;nb&#34;&gt;echo&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;INFO: cur svr pid:&amp;#34;&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$cur_svr_pid&lt;/span&gt;
+    &lt;span class=&#34;c1&#34;&gt;# get svr cpu&lt;/span&gt;
+    &lt;span class=&#34;nv&#34;&gt;cur_cpu&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;sb&#34;&gt;`&lt;/span&gt;top -p &lt;span class=&#34;nv&#34;&gt;$cur_svr_pid&lt;/span&gt; -n &lt;span class=&#34;m&#34;&gt;1&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;|&lt;/span&gt; awk &lt;span class=&#34;s1&#34;&gt;&amp;#39;{if (NR == 8) print $10}&amp;#39;&lt;/span&gt;&lt;span class=&#34;sb&#34;&gt;`&lt;/span&gt;
+    &lt;span class=&#34;nb&#34;&gt;echo&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;INFO: cur cpu:&amp;#34;&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$cur_cpu&lt;/span&gt;
+    &lt;span class=&#34;c1&#34;&gt;# cpu &amp;gt; core*100*80% and svr pid is valid&lt;/span&gt;
+    &lt;span class=&#34;c1&#34;&gt;# because, svr maybe restart&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt; &lt;span class=&#34;sb&#34;&gt;`&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;echo&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$cur_cpu&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt; &amp;gt; 480.0&amp;#34;&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;|&lt;/span&gt; bc&lt;span class=&#34;sb&#34;&gt;`&lt;/span&gt; -eq &lt;span class=&#34;m&#34;&gt;1&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt; &lt;span class=&#34;nv&#34;&gt;$svr_pid&lt;/span&gt; -eq &lt;span class=&#34;m&#34;&gt;0&lt;/span&gt; -o &lt;span class=&#34;nv&#34;&gt;$svr_pid&lt;/span&gt; -eq &lt;span class=&#34;nv&#34;&gt;$cur_svr_pid&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;]&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;then&lt;/span&gt;
+				&lt;span class=&#34;c1&#34;&gt;# perf... not run&lt;/span&gt;
+				&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt; &lt;span class=&#34;nv&#34;&gt;$perf_job_pid&lt;/span&gt; -eq &lt;span class=&#34;m&#34;&gt;0&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;]&lt;/span&gt;
+				&lt;span class=&#34;k&#34;&gt;then&lt;/span&gt;
+				&lt;span class=&#34;c1&#34;&gt;# run a job&lt;/span&gt;
+    		perf record -p &lt;span class=&#34;nv&#34;&gt;$cur_svr_pid&lt;/span&gt; -o perf.txt.&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$cur_cpu&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;&amp;amp;&lt;/span&gt;
+				&lt;span class=&#34;c1&#34;&gt;#strace -fTtc -p $cur_svr_pid -o strace.txt.&amp;#34;$cur_cpu&amp;#34; &amp;amp;&lt;/span&gt;
+				&lt;span class=&#34;c1&#34;&gt;#pstack $cur_svr_pid &amp;gt; pstack.txt.&amp;#34;$cur_cpu&amp;#34; &amp;amp;&lt;/span&gt;
+				&lt;span class=&#34;c1&#34;&gt;#gcore $cur_svr_pid;mv core.$cur_svr_pid core.&amp;#34;$cur_svr_pid.&amp;#34;&amp;#34;$cur_cpu&amp;#34; &amp;amp;&lt;/span&gt;
+   		 	&lt;span class=&#34;nv&#34;&gt;svr_pid&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$cur_svr_pid&lt;/span&gt;
+    		&lt;span class=&#34;nv&#34;&gt;perf_job_pid&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;sb&#34;&gt;`&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;jobs&lt;/span&gt; -l &lt;span class=&#34;p&#34;&gt;|&lt;/span&gt; grep perf.txt. &lt;span class=&#34;p&#34;&gt;|&lt;/span&gt; awk &lt;span class=&#34;s1&#34;&gt;&amp;#39;{print $2}&amp;#39;&lt;/span&gt;&lt;span class=&#34;sb&#34;&gt;`&lt;/span&gt;
+				&lt;span class=&#34;c1&#34;&gt;#strace_job_pid=`jobs -l | grep strace.txt. | awk &amp;#39;{print $2}&amp;#39;`&lt;/span&gt;
+    		&lt;span class=&#34;nb&#34;&gt;echo&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;BEGIN: perf job pid:&amp;#34;&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$perf_job_pid&lt;/span&gt;
+    		&lt;span class=&#34;c1&#34;&gt;#echo &amp;#34;BEGIN: strace job pid:&amp;#34;$strace_job_pid&lt;/span&gt;
+    		&lt;span class=&#34;nb&#34;&gt;echo&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;BEGIN: begin time:&amp;#34;&lt;/span&gt;&lt;span class=&#34;sb&#34;&gt;`&lt;/span&gt;date +%s&lt;span class=&#34;sb&#34;&gt;`&lt;/span&gt;
+		&lt;span class=&#34;k&#34;&gt;fi&lt;/span&gt;
+    &lt;span class=&#34;k&#34;&gt;else&lt;/span&gt;
+				&lt;span class=&#34;c1&#34;&gt;# maybe cpu &amp;lt; 80% or svr is restart&lt;/span&gt;
+	  		&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;[&lt;/span&gt; &lt;span class=&#34;nv&#34;&gt;$perf_job_pid&lt;/span&gt; -ne &lt;span class=&#34;m&#34;&gt;0&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;]&lt;/span&gt;
+	 			&lt;span class=&#34;k&#34;&gt;then&lt;/span&gt;
+      			&lt;span class=&#34;nb&#34;&gt;kill&lt;/span&gt; -2 &lt;span class=&#34;nv&#34;&gt;$perf_job_pid&lt;/span&gt;
+      			&lt;span class=&#34;c1&#34;&gt;#kill -2 $strace_job_pid&lt;/span&gt;
+		  			&lt;span class=&#34;nb&#34;&gt;echo&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;END: end job.end time:&amp;#34;&lt;/span&gt;&lt;span class=&#34;sb&#34;&gt;`&lt;/span&gt;date +%s&lt;span class=&#34;sb&#34;&gt;`&lt;/span&gt;
+		  			&lt;span class=&#34;nb&#34;&gt;echo&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;END: perf job pid:&amp;#34;&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$perf_job_pid&lt;/span&gt;
+		  			&lt;span class=&#34;c1&#34;&gt;#echo &amp;#34;END: strace job pid:&amp;#34;$strace_job_pid&lt;/span&gt;
+		  			&lt;span class=&#34;nb&#34;&gt;echo&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;END: svr_pid:&amp;#34;&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$svr_pid&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34; cur_svr_pid:&amp;#34;&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;$cur_svr_pid&lt;/span&gt;
+		  			&lt;span class=&#34;c1&#34;&gt;# clear pid&lt;/span&gt;
+		  			&lt;span class=&#34;nv&#34;&gt;svr_pid&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;0&lt;/span&gt;
+		  			&lt;span class=&#34;nv&#34;&gt;perf_job_pid&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;0&lt;/span&gt;
+		  			&lt;span class=&#34;c1&#34;&gt;#strace_job_pid=0&lt;/span&gt;
+    		&lt;span class=&#34;k&#34;&gt;fi&lt;/span&gt;
+  	&lt;span class=&#34;k&#34;&gt;fi&lt;/span&gt;
+ 		&lt;span class=&#34;c1&#34;&gt;# sleep top default flush time&lt;/span&gt;
+    sleep &lt;span class=&#34;m&#34;&gt;3&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;done&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;这个脚本的功能就是使用&lt;code&gt;top -p pid&lt;/code&gt;命令定时查看服务的cpu负载，高于80%（脚本中是6核机器，所以是480，需要自行更改）就开始使用perf等命令采集信息，由于top命令默认是3s更新一次信息，所以脚本会sleep 3s重新检查cpu，如果低于阈值，就干掉相关的采集命令，进行下一轮采集。&lt;/p&gt;
 &lt;h3 id=&#34;总结&#34;&gt;总结&lt;/h3&gt;
 &lt;p&gt;这个有毛刺的模块，一开始使用脚本发现cpu是消耗在&lt;code&gt;unordered_map&lt;/code&gt;的查找操作中，但平时运行时根据perf命令的结果显示也是&lt;code&gt;unordered_map&lt;/code&gt;的查找操作消耗cpu比较多，所以怀疑极大可能是因为上面所说的原因2导致。通过日志发现确实有超长耗时的请求，捞出来看了下是因为请求的query长度过长，分词后需要匹配的词典过多导致cpu消耗太大。&lt;/p&gt;
 &lt;p&gt;因此后续考虑加入布隆过滤器提前过滤掉不可能命中的query，减少去匹配的次数，从而降低cpu利用率。&lt;/p&gt;

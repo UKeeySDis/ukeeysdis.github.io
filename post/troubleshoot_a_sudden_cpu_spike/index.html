@@ -68,7 +68,7 @@
 <meta itemprop="description" content="这篇文章记录一次线上cpu毛刺的定位排查过程，希望能帮助到有需要的同学，同时也做一个复盘，下次再遇见类似情况可以花更少时间解决。 cpu毛刺是">
 <meta itemprop="datePublished" content="2021-01-03T21:02:16+08:00" />
 <meta itemprop="dateModified" content="2021-01-03T21:02:16+08:00" />
-<meta itemprop="wordCount" content="1834">
+<meta itemprop="wordCount" content="1887">
 
 
 
@@ -305,7 +305,7 @@
             <a href="http://ukeeysdis.github.io/categories/%E7%B3%BB%E7%BB%9F%E8%B0%83%E8%AF%95%E4%BC%98%E5%8C%96/"> 系统调试优化 </a>
             
           </div>
-        <span class="more-meta"> 约 1834 字 </span>
+        <span class="more-meta"> 约 1887 字 </span>
           <span class="more-meta"> 预计阅读 4 分钟 </span>
 
         
@@ -372,60 +372,119 @@ cpu毛刺是指在短时间内，cpu的使用率飙升，但很快又降到正�
 <p>对于原因3，可以根据perf命令进行定位，查看是什么操作占用过多cpu，或者使用<code>pstack</code>命令把当前调用栈打印出来</p>
 <p>这样的思路可能只适用于使用cgroup等进行资源隔离的服务，毕竟如果资源没有隔离，那可能整台机器都处于高负载，使用命令也会得不大及时的处理，影响结果的判断。</p>
 <p>参考脚本：</p>
-<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell"><span style="color:#75715e">#!/bin/bash
-</span><span style="color:#75715e"></span><span style="color:#75715e"># svr pid which perf record</span>
-svr_pid<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>
-<span style="color:#75715e"># perf job pid</span>
-perf_job_pid<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>
-<span style="color:#75715e"># strace job pid</span>
-<span style="color:#75715e"># strace_job_pid=0</span>
-<span style="color:#66d9ef">while</span> :
-<span style="color:#66d9ef">do</span>
-    <span style="color:#75715e"># get svr pid</span>
-    cur_svr_pid<span style="color:#f92672">=</span><span style="color:#e6db74">`</span>ps -ef | grep <span style="color:#e6db74">&#34;svr_name&#34;</span> | grep -v grep | awk <span style="color:#e6db74">&#39;{print $2}&#39;</span><span style="color:#e6db74">`</span>
-    echo <span style="color:#e6db74">&#34;INFO: cur svr pid:&#34;</span>$cur_svr_pid
-    <span style="color:#75715e"># get svr cpu</span>
-    cur_cpu<span style="color:#f92672">=</span><span style="color:#e6db74">`</span>top -p $cur_svr_pid -n <span style="color:#ae81ff">1</span> | awk <span style="color:#e6db74">&#39;{if (NR == 8) print $10}&#39;</span><span style="color:#e6db74">`</span>
-    echo <span style="color:#e6db74">&#34;INFO: cur cpu:&#34;</span>$cur_cpu
-    <span style="color:#75715e"># cpu &gt; core*100*80% and svr pid is valid</span>
-    <span style="color:#75715e"># because, svr maybe restart</span>
-    <span style="color:#66d9ef">if</span> <span style="color:#f92672">[</span> <span style="color:#e6db74">`</span>echo <span style="color:#e6db74">&#34;</span>$cur_cpu<span style="color:#e6db74"> &gt; 480.0&#34;</span> | bc<span style="color:#e6db74">`</span> -eq <span style="color:#ae81ff">1</span> <span style="color:#f92672">]</span> <span style="color:#f92672">&amp;&amp;</span> <span style="color:#f92672">[</span> $svr_pid -eq <span style="color:#ae81ff">0</span> -o $svr_pid -eq $cur_svr_pid <span style="color:#f92672">]</span>
-    <span style="color:#66d9ef">then</span>
-				<span style="color:#75715e"># perf... not run</span>
-				<span style="color:#66d9ef">if</span> <span style="color:#f92672">[</span> $perf_job_pid -eq <span style="color:#ae81ff">0</span> <span style="color:#f92672">]</span>
-				<span style="color:#66d9ef">then</span>
-				<span style="color:#75715e"># run a job</span>
-    		perf record -p $cur_svr_pid -o perf.txt.<span style="color:#e6db74">&#34;</span>$cur_cpu<span style="color:#e6db74">&#34;</span> &amp;
-				<span style="color:#75715e">#strace -fTtc -p $cur_svr_pid -o strace.txt.&#34;$cur_cpu&#34; &amp;</span>
-				<span style="color:#75715e">#pstack $cur_svr_pid &gt; pstack.txt.&#34;$cur_cpu&#34; &amp;</span>
-				<span style="color:#75715e">#gcore $cur_svr_pid;mv core.$cur_svr_pid core.&#34;$cur_svr_pid.&#34;&#34;$cur_cpu&#34; &amp;</span>
-   		 	svr_pid<span style="color:#f92672">=</span>$cur_svr_pid
-    		perf_job_pid<span style="color:#f92672">=</span><span style="color:#e6db74">`</span>jobs -l | grep perf.txt. | awk <span style="color:#e6db74">&#39;{print $2}&#39;</span><span style="color:#e6db74">`</span>
-				<span style="color:#75715e">#strace_job_pid=`jobs -l | grep strace.txt. | awk &#39;{print $2}&#39;`</span>
-    		echo <span style="color:#e6db74">&#34;BEGIN: perf job pid:&#34;</span>$perf_job_pid
-    		<span style="color:#75715e">#echo &#34;BEGIN: strace job pid:&#34;$strace_job_pid</span>
-    		echo <span style="color:#e6db74">&#34;BEGIN: begin time:&#34;</span><span style="color:#e6db74">`</span>date +%s<span style="color:#e6db74">`</span>
-		<span style="color:#66d9ef">fi</span>
-    <span style="color:#66d9ef">else</span>
-				<span style="color:#75715e"># maybe cpu &lt; 80% or svr is restart</span>
-	  		<span style="color:#66d9ef">if</span> <span style="color:#f92672">[</span> $perf_job_pid -ne <span style="color:#ae81ff">0</span> <span style="color:#f92672">]</span>
-	 			<span style="color:#66d9ef">then</span>
-      			kill -2 $perf_job_pid
-      			<span style="color:#75715e">#kill -2 $strace_job_pid</span>
-		  			echo <span style="color:#e6db74">&#34;END: end job.end time:&#34;</span><span style="color:#e6db74">`</span>date +%s<span style="color:#e6db74">`</span>
-		  			echo <span style="color:#e6db74">&#34;END: perf job pid:&#34;</span>$perf_job_pid
-		  			<span style="color:#75715e">#echo &#34;END: strace job pid:&#34;$strace_job_pid</span>
-		  			echo <span style="color:#e6db74">&#34;END: svr_pid:&#34;</span>$svr_pid<span style="color:#e6db74">&#34; cur_svr_pid:&#34;</span>$cur_svr_pid
-		  			<span style="color:#75715e"># clear pid</span>
-		  			svr_pid<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>
-		  			perf_job_pid<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>
-		  			<span style="color:#75715e">#strace_job_pid=0</span>
-    		<span style="color:#66d9ef">fi</span>
-  	<span style="color:#66d9ef">fi</span>
- 		<span style="color:#75715e"># sleep top default flush time</span>
-    sleep <span style="color:#ae81ff">3</span>
-<span style="color:#66d9ef">done</span>
-</code></pre></div><p>这个脚本的功能就是使用<code>top -p pid</code>命令定时查看服务的cpu负载，高于80%（脚本中是6核机器，所以是480，需要自行更改）就开始使用perf等命令采集信息，由于top命令默认是3s更新一次信息，所以脚本会sleep 3s重新检查cpu，如果低于阈值，就干掉相关的采集命令，进行下一轮采集。</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span><span class="lnt">52
+</span><span class="lnt">53
+</span></code></pre></td>
+<td class="lntd">
+<pre class="chroma"><code class="language-shell" data-lang="shell"><span class="cp">#!/bin/bash
+</span><span class="cp"></span><span class="c1"># svr pid which perf record</span>
+<span class="nv">svr_pid</span><span class="o">=</span><span class="m">0</span>
+<span class="c1"># perf job pid</span>
+<span class="nv">perf_job_pid</span><span class="o">=</span><span class="m">0</span>
+<span class="c1"># strace job pid</span>
+<span class="c1"># strace_job_pid=0</span>
+<span class="k">while</span> :
+<span class="k">do</span>
+    <span class="c1"># get svr pid</span>
+    <span class="nv">cur_svr_pid</span><span class="o">=</span><span class="sb">`</span>ps -ef <span class="p">|</span> grep <span class="s2">&#34;svr_name&#34;</span> <span class="p">|</span> grep -v grep <span class="p">|</span> awk <span class="s1">&#39;{print $2}&#39;</span><span class="sb">`</span>
+    <span class="nb">echo</span> <span class="s2">&#34;INFO: cur svr pid:&#34;</span><span class="nv">$cur_svr_pid</span>
+    <span class="c1"># get svr cpu</span>
+    <span class="nv">cur_cpu</span><span class="o">=</span><span class="sb">`</span>top -p <span class="nv">$cur_svr_pid</span> -n <span class="m">1</span> <span class="p">|</span> awk <span class="s1">&#39;{if (NR == 8) print $10}&#39;</span><span class="sb">`</span>
+    <span class="nb">echo</span> <span class="s2">&#34;INFO: cur cpu:&#34;</span><span class="nv">$cur_cpu</span>
+    <span class="c1"># cpu &gt; core*100*80% and svr pid is valid</span>
+    <span class="c1"># because, svr maybe restart</span>
+    <span class="k">if</span> <span class="o">[</span> <span class="sb">`</span><span class="nb">echo</span> <span class="s2">&#34;</span><span class="nv">$cur_cpu</span><span class="s2"> &gt; 480.0&#34;</span> <span class="p">|</span> bc<span class="sb">`</span> -eq <span class="m">1</span> <span class="o">]</span> <span class="o">&amp;&amp;</span> <span class="o">[</span> <span class="nv">$svr_pid</span> -eq <span class="m">0</span> -o <span class="nv">$svr_pid</span> -eq <span class="nv">$cur_svr_pid</span> <span class="o">]</span>
+    <span class="k">then</span>
+				<span class="c1"># perf... not run</span>
+				<span class="k">if</span> <span class="o">[</span> <span class="nv">$perf_job_pid</span> -eq <span class="m">0</span> <span class="o">]</span>
+				<span class="k">then</span>
+				<span class="c1"># run a job</span>
+    		perf record -p <span class="nv">$cur_svr_pid</span> -o perf.txt.<span class="s2">&#34;</span><span class="nv">$cur_cpu</span><span class="s2">&#34;</span> <span class="p">&amp;</span>
+				<span class="c1">#strace -fTtc -p $cur_svr_pid -o strace.txt.&#34;$cur_cpu&#34; &amp;</span>
+				<span class="c1">#pstack $cur_svr_pid &gt; pstack.txt.&#34;$cur_cpu&#34; &amp;</span>
+				<span class="c1">#gcore $cur_svr_pid;mv core.$cur_svr_pid core.&#34;$cur_svr_pid.&#34;&#34;$cur_cpu&#34; &amp;</span>
+   		 	<span class="nv">svr_pid</span><span class="o">=</span><span class="nv">$cur_svr_pid</span>
+    		<span class="nv">perf_job_pid</span><span class="o">=</span><span class="sb">`</span><span class="nb">jobs</span> -l <span class="p">|</span> grep perf.txt. <span class="p">|</span> awk <span class="s1">&#39;{print $2}&#39;</span><span class="sb">`</span>
+				<span class="c1">#strace_job_pid=`jobs -l | grep strace.txt. | awk &#39;{print $2}&#39;`</span>
+    		<span class="nb">echo</span> <span class="s2">&#34;BEGIN: perf job pid:&#34;</span><span class="nv">$perf_job_pid</span>
+    		<span class="c1">#echo &#34;BEGIN: strace job pid:&#34;$strace_job_pid</span>
+    		<span class="nb">echo</span> <span class="s2">&#34;BEGIN: begin time:&#34;</span><span class="sb">`</span>date +%s<span class="sb">`</span>
+		<span class="k">fi</span>
+    <span class="k">else</span>
+				<span class="c1"># maybe cpu &lt; 80% or svr is restart</span>
+	  		<span class="k">if</span> <span class="o">[</span> <span class="nv">$perf_job_pid</span> -ne <span class="m">0</span> <span class="o">]</span>
+	 			<span class="k">then</span>
+      			<span class="nb">kill</span> -2 <span class="nv">$perf_job_pid</span>
+      			<span class="c1">#kill -2 $strace_job_pid</span>
+		  			<span class="nb">echo</span> <span class="s2">&#34;END: end job.end time:&#34;</span><span class="sb">`</span>date +%s<span class="sb">`</span>
+		  			<span class="nb">echo</span> <span class="s2">&#34;END: perf job pid:&#34;</span><span class="nv">$perf_job_pid</span>
+		  			<span class="c1">#echo &#34;END: strace job pid:&#34;$strace_job_pid</span>
+		  			<span class="nb">echo</span> <span class="s2">&#34;END: svr_pid:&#34;</span><span class="nv">$svr_pid</span><span class="s2">&#34; cur_svr_pid:&#34;</span><span class="nv">$cur_svr_pid</span>
+		  			<span class="c1"># clear pid</span>
+		  			<span class="nv">svr_pid</span><span class="o">=</span><span class="m">0</span>
+		  			<span class="nv">perf_job_pid</span><span class="o">=</span><span class="m">0</span>
+		  			<span class="c1">#strace_job_pid=0</span>
+    		<span class="k">fi</span>
+  	<span class="k">fi</span>
+ 		<span class="c1"># sleep top default flush time</span>
+    sleep <span class="m">3</span>
+<span class="k">done</span>
+</code></pre></td></tr></table>
+</div>
+</div><p>这个脚本的功能就是使用<code>top -p pid</code>命令定时查看服务的cpu负载，高于80%（脚本中是6核机器，所以是480，需要自行更改）就开始使用perf等命令采集信息，由于top命令默认是3s更新一次信息，所以脚本会sleep 3s重新检查cpu，如果低于阈值，就干掉相关的采集命令，进行下一轮采集。</p>
 <h3 id="总结">总结</h3>
 <p>这个有毛刺的模块，一开始使用脚本发现cpu是消耗在<code>unordered_map</code>的查找操作中，但平时运行时根据perf命令的结果显示也是<code>unordered_map</code>的查找操作消耗cpu比较多，所以怀疑极大可能是因为上面所说的原因2导致。通过日志发现确实有超长耗时的请求，捞出来看了下是因为请求的query长度过长，分词后需要匹配的词典过多导致cpu消耗太大。</p>
 <p>因此后续考虑加入布隆过滤器提前过滤掉不可能命中的query，减少去匹配的次数，从而降低cpu利用率。</p>
